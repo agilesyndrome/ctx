@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+if [ -z "${1}" ]; then
+	echo "Usage: ${0} context_name command arg1 arg2..."
+	exit 1
+fi
+
+export CTX=${1}
+shift;
+
+mkdir -p ~/.ctx/${CTX}
+
+# ln -sf ~/.zshrc ~/.ctx/${CTX}/.zshrc
+export ZDOTDIR=~/.ctx/${CTX}
+export ASDF_DATA_DIR=~/.ctx/${CTX}/.asdfmac
+export ASDF_DEFAULT_TOOL_VERSIONS_FILENAME=${ZDOTDIR}/.tool-versions
+
+
+if [ -n "${1}" ]; then
+   shift;
+   envchain ${CTX} /bin/zsh -ic ${@}
+else
+  envchain --list ${CTX} > ${ZDOTDIR}/.envchains
+  envchain ${CTX} /bin/zsh
+
+fi

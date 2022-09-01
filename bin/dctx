@@ -1,0 +1,64 @@
+#!/bin/bash
+
+CTX_DOCKER_CONTAINER=${CTX_DOCKER_CONTAINER:-"juneeighteen/ctx"}
+CTX_DOCKER_PLATFORM="linux/x86_64"
+CTX_DATA_DIR="~/.ctx"
+
+if [ "${PWD}" == "${HOME}" ]; then
+	echo "[Warning]" You cannot dctx to your home directory. Scratch directory being created.
+	CTX_SCRATCH_DIR=$(mktemp -d)
+fi
+
+if [ -z "${1}" ]; then
+	echo "Usage: ${0} <context> command args.."
+	exit 1
+fi
+
+CTX=${1}
+shift;
+
+if [ -f ${CTX_DATA_DIR}/${CTX}/.env ]; then
+	. ${CTX_DATA_DIR}/${CTX}/.env
+fi
+
+ENVEXISTS=$(envchain --list | grep ${CTX})
+if [ $? -gt 0 ]; then
+	echo "${CTX} environment does not exist in envchain"
+	exit 1
+fi
+
+set -e
+
+if [ ! -d ~/.ctx/_template ]; then
+	mkdir -p ~/.ctx/_template
+	echo "Creating new local template ~/.ctx/_template"
+	docker run --platform ${CTX_DOCKER_PLATFORM} -v ~/.ctx/_template:/mnttmp --rm --entrypoint new-ctx.sh ${CTX_DOCKER_CONTAINER}
+fi
+
+if [ ! -d ~/.ctx/${CTX} ]; then
+	echo "Creating new ~/.ctx/${CTX}..."
+	cp -r ~/.ctx/_template ~/.ctx/${CTX}
+fi
+
+
+ENVVARS=$(envchain --list ${CTX} | xargs -I{} echo -e {})
+
+CTX_CONTAINER_NAME=ctx-${CTX}-$(date +%s)
+
+envchain ${CTX} docker \
+	run \
+	-it \
+	--rm \
+	--name ${CTX_CONTAINER_NAME} \
+	-v ~/.ctx/${CTX}:/home/appbot \
+	-v ~/.aws:/home/appbot/.aws \
+	-v ${CTX_SCRATCH_DIR:-${PWD}}:/workspace \
+	${ENVVARS} \
+	-e CTX_CONTAINER_NAME=${CTX_CONTAINER_NAME} \
+	--platform ${CTX_DOCKER_PLATFORM} \
+	${CTX_DOCKER_CONTAINER} ${@}
+
+if [ -n "${CTX_SCRATCH_DIR}" ]; then
+	echo "You may want to"
+	echo "rm -rf ${CTX_SCRATCH_DIR}"
+fi
