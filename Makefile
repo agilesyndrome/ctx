@@ -4,7 +4,7 @@ CTX_PATH := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 image:
 	docker build \
 		--platform linux/x86_64 \
-		--build-arg ctxDefauleTheme=$${ZSH_THEME} \
+		--build-arg ctxDefaultTheme=$${ZSH_THEME} \
 		-t juneeighteen/ctx -f Dockerfile docker
 
 install: image
